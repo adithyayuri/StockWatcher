@@ -1,6 +1,46 @@
 stocks:
-  - AAPL
-  - MSFT
   - GOOGL
   - AMZN
-  - TSLA
+  - MCHP
+  - TXN
+  - AVGO
+  - 'ON'
+  - STM
+  - AMD
+  - MU
+  - NXPI
+  - INTC
+  - ADI
+  - QCOM
+  - MPWR
+  - NVDA
+  - DELL
+  - HPE
+  - SMCI
+  - GSAT
+  - LUMN
+  - RCI
+  - SATS
+  - IRDM
+  - VZ
+  - TMUS
+  - T
+  - KLAC
+  - AMAT
+  - ASML
+  - AAL
+  - PEP
+  - KO
+  - ACN
+  - SNAP
+  - GSK
+  - AMGN
+  - JNJ
+  - NVO
+  - MRK
+  - PFE
+  - UNH
+  - PGR
+settings:
+  chartDuration: 1M
+  technicalDuration: 1W
