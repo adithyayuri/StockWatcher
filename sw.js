@@ -8,9 +8,6 @@ const urlsToCache = [
   'https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js',
   'icon-192.png',
   'icon-512.png'
-  // Add your .yaml files if you want them cached
-  'my_watchlist.yaml',
-  'tech_giants.yaml'
 ];
 
 // Install event: cache all core assets
