@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Dashboard</title>
+    <meta name="description" content="Personal stock dashboard with TradingView widgets.">
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #37ff0029 0%, #ef323228 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            width: 320px;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(100%);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            background: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 16px;
+            z-index: 999;
+            transition: right 0.3s ease;
+        }
+
+        .sidebar-toggle.sidebar-open {
+            right: 340px;
+        }
+
+        .expand-all-toggle {
+            position: fixed;
+            right: 20px;
+            top: 70px;
+            background: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 16px;
+            z-index: 999;
+            transition: right 0.3s ease;
+        }
+
+        .expand-all-toggle.sidebar-open {
+            right: 340px;
+        }
+
+        .sidebar-content {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        /* Added for new buttons */
+        .input-group .btn {
+            margin-bottom: 10px;
+        }
+        .input-group .btn:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .input-group textarea {
+            min-height: 120px;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-row input {
+            flex: 1;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .dashboard {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 0 40px 0 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+
+        .empty-state h1 {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .stocks-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stock-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: background 0.2s, transform 0.1s;
+            line-height: 1;
+            padding: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .close-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+
+        .close-btn:active {
+            transform: scale(0.95);
+        }
+
+        .widget-container {
+            margin-bottom: 16px;
+            height: 210px;
+        }
+
+        .widget-container:last-child {
+            margin-bottom: 0;
+            height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: height 0.3s ease, opacity 0.3s ease, margin-bottom 0.3s ease;
+        }
+
+        .stock-card.expanded .widget-container:last-child {
+            height: 375px;
+            opacity: 1;
+            margin-bottom: 0;
+        }
+
+        .tradingview-widget-container {
+            height: 100%;
+        }
+
+        .section-divider {
+            margin: 20px 0;
+            border: 0;
+            border-top: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <button class="sidebar-toggle" id="sidebarToggle">⚙️</button>
+    <button class="expand-all-toggle" id="expandAllToggle">📊</button>
+    
+    <div class="sidebar collapsed" id="sidebar">
+        <div class="sidebar-content">
+            <h2>Stock Dashboard Settings</h2>
+            
+            <div class="input-group">
+                <label for="stockSymbol">Add Stock Symbol</label>
+                <input type="text" id="stockSymbol" placeholder="e.g., AAPL" style="text-transform: uppercase;">
+            </div>
+            <button class="btn btn-primary" onclick="addStock()">Add Stock</button>
+
+            <hr class="section-divider">
+
+            <div class="input-group">
+                <label>Load Watchlist</label>
+                <button class="btn btn-secondary" onclick="loadWatchlist('my_watchlist.yaml')">My Watchlist</button>
+                <button class="btn btn-secondary" onclick="loadWatchlist('tech_giants.yaml')">Tech Giants</button>
+                </div>
+
+            <hr class="section-divider">
+
+            <div class="input-group">
+                <label for="chartDuration">Default Chart Duration</label>
+                <select id="chartDuration">
+                    <option value="1D">1 Day</option>
+                    <option value="5D">5 Days</option>
+                    <option value="1M" selected>1 Month</option>
+                    <option value="3M">3 Months</option>
+                    <option value="6M">6 Months</option>
+                    <option value="1Y">1 Year</option>
+                    <option value="5Y">5 Years</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="technicalDuration">Technical Analysis Range</label>
+                <select id="technicalDuration">
+                    <option value="1m">1 Minute</option>
+                    <option value="5m">5 Minutes</option>
+                    <option value="15m">15 Minutes</option>
+                    <option value="1h">1 Hour</option>
+                    <option value="1D">1 Day</option>
+                    <option value="1W" selected>1 Week</option>
+                    <option value="1M">1 Month</option>
+                </select>
+            </div>
+
+            <hr class="section-divider">
+
+            <div class="input-group">
+                <label for="yamlImport">Import Stocks (YAML)</label>
+                <textarea id="yamlImport" placeholder="stocks:&#10;  - AAPL&#10;  - GOOGL&#10;  - MSFT"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="importStocks()">Import (Add to Current)</button>
+
+            <button class="btn btn-secondary" onclick="exportStocks()">Export to YAML</button>
+
+            <hr class="section-divider">
+
+            <button class="btn btn-danger" onclick="clearAllStocks()">Clear All Stocks</button>
+        </div>
+    </div>
+
+    <div class="dashboard" id="dashboard">
+        <div class="empty-state" id="emptyState">
+            <h1>📈 Stock Dashboard</h1>
+            <p>Click the settings button to add stocks or load a watchlist</p>
+        </div>
+        <div class="stocks-grid" id="stocksGrid" style="display: none;"></div>
+    </div>
+
+    <script>
+        let stocks = [];
+        let chartDuration = '1M';
+        let technicalDuration = '1W';
+        let allExpanded = false;
+
+        // --- NEW: Load data from URL parameters ---
+        function loadDataFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            
+            const stocksParam = params.get('stocks');
+            if (stocksParam) {
+                stocks = stocksParam.split(',').filter(s => s.trim() !== '').map(s => s.toUpperCase());
+            }
+
+            const chartParam = params.get('chartDuration');
+            if (chartParam) {
+                chartDuration = chartParam;
+                document.getElementById('chartDuration').value = chartDuration;
+            }
+
+            const techParam = params.get('technicalDuration');
+            if (techParam) {
+                technicalDuration = techParam;
+                document.getElementById('technicalDuration').value = technicalDuration;
+            }
+        }
+
+        // --- NEW: Save data to URL parameters ---
+        function updateURL() {
+            const params = new URLSearchParams();
+            if (stocks.length > 0) {
+                params.set('stocks', stocks.join(','));
+            }
+            params.set('chartDuration', chartDuration);
+            params.set('technicalDuration', technicalDuration);
+
+            // Use pushState to update the URL without a page reload
+            const newUrl = `${window.location.pathname}?${params.toString()}`;
+            history.pushState({ path: newUrl }, '', newUrl);
+        }
+
+        // Sidebar toggle
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const expandAllToggle = document.getElementById('expandAllToggle');
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            sidebarToggle.classList.toggle('sidebar-open');
+            expandAllToggle.classList.toggle('sidebar-open');
+        });
+
+        expandAllToggle.addEventListener('click', () => {
+            allExpanded = !allExpanded;
+            expandAllToggle.textContent = allExpanded ? '📉' : '📊';
+            document.querySelectorAll('.stock-card').forEach(card => {
+                if (allExpanded) {
+                    card.classList.add('expanded');
+                    const uniqueId = card.getAttribute('data-unique-id');
+                    const symbol = card.getAttribute('data-symbol');
+                    const technicalContainer = document.getElementById(`technical-${uniqueId}`);
+                    if (technicalContainer && !technicalContainer.querySelector('script')) {
+                        loadTechnicalAnalysis(symbol, uniqueId);
+                    }
+                } else {
+                    card.classList.remove('expanded');
+                }
+            });
+        });
+
+        // Settings listeners
+        document.getElementById('chartDuration').addEventListener('change', (e) => {
+            chartDuration = e.target.value;
+            updateURL(); // Replaced saveData()
+            refreshAllCharts();
+        });
+
+        document.getElementById('technicalDuration').addEventListener('change', (e) => {
+            technicalDuration = e.target.value;
+            updateURL(); // Replaced saveData()
+            refreshAllCharts();
+        });
+
+        // Add stock on Enter key
+        document.getElementById('stockSymbol').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addStock();
+            }
+        });
+
+        function addStock() {
+            const input = document.getElementById('stockSymbol');
+            const symbol = input.value.trim().toUpperCase();
+            
+            if (!symbol) {
+                alert('Please enter a stock symbol');
+                return;
+            }
+
+            if (stocks.includes(symbol)) {
+                alert('Stock already added');
+                return;
+            }
+
+            stocks.push(symbol);
+            input.value = '';
+            updateURL(); // Replaced saveData()
+            renderStocks();
+        }
+
+        function removeStock(symbol) {
+            stocks = stocks.filter(s => s !== symbol);
+            updateURL(); // Replaced saveData()
+            renderStocks();
+        }
+
+        function renderStocks() {
+            const emptyState = document.getElementById('emptyState');
+            const stocksGrid = document.getElementById('stocksGrid');
+
+            if (stocks.length === 0) {
+                emptyState.style.display = 'block';
+                stocksGrid.style.display = 'none';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            stocksGrid.style.display = 'grid';
+            stocksGrid.innerHTML = '';
+
+            stocks.forEach(symbol => {
+                const card = createStockCard(symbol);
+                stocksGrid.appendChild(card);
+            });
+        }
+
+        function createStockCard(symbol) {
+            const card = document.createElement('div');
+            card.className = 'stock-card';
+            if (allExpanded) {
+                card.classList.add('expanded');
+            }
+            card.setAttribute('data-symbol', symbol);
+            
+            const uniqueId = `widget-${symbol}-${Date.now()}`;
+            card.setAttribute('data-unique-id', uniqueId);
+            
+            card.innerHTML = `
+                <button class="close-btn" onclick="removeStock('${symbol}')" title="Remove ${symbol}">×</button>
+                <div class="widget-container">
+                    <div class="tradingview-widget-container" id="chart-${uniqueId}">
+                        <div class="tradingview-widget-container__widget"></div>
+                    </div>
+                </div>
+                <div class="widget-container">
+                    <div class="tradingview-widget-container" id="technical-${uniqueId}">
+                        <div class="tradingview-widget-container__widget"></div>
+                    </div>
+                </div>
+            `;
+
+            // Load mini chart immediately
+            setTimeout(() => {
+                loadMiniChart(symbol, uniqueId);
+                // Only load technical analysis if expanded
+                if (allExpanded) {
+                    loadTechnicalAnalysis(symbol, uniqueId);
+                }
+            }, 100);
+
+            return card;
+        }
+
+        function loadMiniChart(symbol, uniqueId) {
+            const container = document.getElementById(`chart-${uniqueId}`);
+            if (!container) return; // Add check in case card was removed
+            container.innerHTML = ''; // Clear previous script
+            const script = document.createElement('script');
+            script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "symbol": symbol,
+                "width": "100%",
+                "height": "100%",
+                "locale": "en",
+                "dateRange": chartDuration,
+                "colorTheme": "light",
+                "isTransparent": false,
+                "autosize": true,
+                "largeChartUrl": ""
+            });
+            container.appendChild(script);
+        }
+
+        function loadTechnicalAnalysis(symbol, uniqueId) {
+            const container = document.getElementById(`technical-${uniqueId}`);
+            if (!container) return; // Add check
+            container.innerHTML = ''; // Clear previous script
+            const script = document.createElement('script');
+            script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "interval": technicalDuration,
+                "width": "100%",
+                "isTransparent": false,
+                "height": "100%",
+                "symbol": symbol,
+                "showIntervalTabs": true,
+                "displayMode": "single",
+                "locale": "en",
+                "colorTheme": "light"
+            });
+            container.appendChild(script);
+        }
+
+        function refreshAllCharts() {
+            renderStocks();
+        }
+
+        // --- NEW: Load preset YAML watchlist ---
+        async function loadWatchlist(filename) {
+            try {
+                // On GitHub Pages, URLs are relative to the root or current path.
+                // Assuming YAML files are in the same directory as index.html
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.statusText}`);
+                }
+                const yamlText = await response.text();
+                const data = jsyaml.load(yamlText);
+                
+                if (data.stocks && Array.isArray(data.stocks)) {
+                    // This REPLACES the current stock list
+                    stocks = data.stocks.map(s => String(s).toUpperCase());
+                    
+                    // Optionally update settings from YAML
+                    if(data.settings) {
+                        if(data.settings.chartDuration) {
+                            chartDuration = data.settings.chartDuration;
+                            document.getElementById('chartDuration').value = chartDuration;
+                        }
+                        if(data.settings.technicalDuration) {
+                            technicalDuration = data.settings.technicalDuration;
+                            document.getElementById('technicalDuration').value = technicalDuration;
+                        }
+                    }
+                    
+                    updateURL(); // Update the URL
+                    renderStocks(); // Re-render the dashboard
+                    sidebar.classList.add('collapsed'); // Close sidebar
+                    sidebarToggle.classList.remove('sidebar-open');
+                    expandAllToggle.classList.remove('sidebar-open');
+                } else {
+                    alert('Invalid YAML format. Expected a "stocks" array.');
+                }
+            } catch (e) {
+                alert(`Error loading watchlist "${filename}": ${e.message}\n\Make sure the file exists in your repository.`);
+            }
+        }
+
+        function importStocks() {
+            const yamlText = document.getElementById('yamlImport').value.trim();
+            
+            if (!yamlText) {
+                alert('Please enter YAML data');
+                return;
+            }
+
+            try {
+                const data = jsyaml.load(yamlText);
+                
+                if (!data.stocks || !Array.isArray(data.stocks)) {
+                    alert('Invalid YAML format. Expected:\nstocks:\n  - AAPL\n  - GOOGL');
+                    return;
+                }
+                
+                const newStocks = data.stocks.map(s => String(s).toUpperCase());
+                // This ADDS to the current list, avoiding duplicates
+                stocks = [...new Set([...stocks, ...newStocks])];
+                
+                document.getElementById('yamlImport').value = '';
+                updateURL(); // Replaced saveData()
+                renderStocks();
+                alert(`Imported and added ${newStocks.length} stocks`);
+            } catch (e) {
+                alert('Error parsing YAML: ' + e.message);
+            }
+        }
+
+        function exportStocks() {
+            if (stocks.length === 0) {
+                alert('No stocks to export');
+                return;
+            }
+
+            const yamlData = {
+                stocks: stocks,
+                settings: {
+                    chartDuration: chartDuration,
+                    technicalDuration: technicalDuration
+                }
+            };
+
+            const yamlText = jsyaml.dump(yamlData);
+            
+            // Copy to clipboard and show in textarea
+            navigator.clipboard.writeText(yamlText).then(() => {
+                document.getElementById('yamlImport').value = yamlText;
+                alert('YAML exported to clipboard and shown in import field!');
+            }).catch(() => {
+                document.getElementById('yamlImport').value = yamlText;
+                alert('YAML exported to import field!');
+            });
+        }
+
+        function clearAllStocks() {
+            if (stocks.length === 0) {
+                alert('No stocks to clear');
+                return;
+            }
+
+            if (confirm('Are you sure you want to remove all stocks?')) {
+                stocks = [];
+                updateURL(); // Replaced saveData()
+                renderStocks();
+            }
+        }
+
+        // --- Initial load ---
+        loadDataFromURL(); // Replaced loadSavedData()
+        renderStocks();
+
+        // --- NEW: PWA Service Worker Registration ---
+        window.addEventListener('load', () => {
+            if ('serviceWorker' in navigator) {
+                // Use ./sw.js to be relative to the HTML file
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => {
+                        console.log('Service worker registered.', reg);
+                    })
+                    .catch(err => {
+                        console.log('Service worker registration failed:', err);
+                    });
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# You can also include settings
+settings:
+  chartDuration: 1Y
+  technicalDuration: 1W
+
+stocks:
+  - NVDA
+  - AMD
+  - INTC
+  - TSM
+  - QCOM
